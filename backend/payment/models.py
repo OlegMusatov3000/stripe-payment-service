@@ -19,6 +19,32 @@ class Item(models.Model):
         verbose_name_plural = 'Товары'
 
 
+class Discount(models.Model):
+    name = models.CharField('Название', max_length=255)
+    amount = models.DecimalField(
+        '% скидки', max_digits=10, decimal_places=2
+    )
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Скидка'
+        verbose_name_plural = 'Скидки'
+
+
+class Tax(models.Model):
+    name = models.CharField('Название', max_length=255)
+    rate = models.DecimalField('Ставка налога', max_digits=5, decimal_places=2)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Налог'
+        verbose_name_plural = 'Налоги'
+
+
 class Order(models.Model):
     items = models.ManyToManyField(
         Item, related_name='orders', verbose_name='Товары',
@@ -31,8 +57,16 @@ class Order(models.Model):
         User, on_delete=models.CASCADE,
         verbose_name='Пользователь, который совершает покупку'
     )
-    total_price = models.IntegerField(
+    total_price = models.FloatField(
         'Стоимость заказа', blank=True, null=True
+    )
+    discount = models.ForeignKey(
+        Discount, on_delete=models.SET_NULL,
+        blank=True, null=True, verbose_name='Скидка'
+    )
+    tax = models.ForeignKey(
+        Tax, on_delete=models.SET_NULL, blank=True,
+        null=True, verbose_name='Налог'
     )
 
     def calculate_total_price(self):

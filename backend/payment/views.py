@@ -1,7 +1,8 @@
 import stripe
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 
 from stripe_service_backend.settings import API_KEY
@@ -12,11 +13,40 @@ stripe.api_key = API_KEY
 
 
 @csrf_exempt
-def buy_item(request, item_id):
-    item = Item.objects.get(pk=item_id)
+@login_required
+def item_detail(request, item_id):
+    item = get_object_or_404(Item, pk=item_id)
+    order = Order.objects.filter(
+        user=request.user,
+        payment_intent_id=None
+    )
+    context = {
+        'item': item,
+        'order': order
+    }
+    return render(request, 'payment/item_detail.html', context)
 
-    order = Order.objects.create()
+
+@csrf_exempt
+@login_required
+def add_to_cart(request, item_id):
+    item = get_object_or_404(Item, pk=item_id)
+    order, _ = Order.objects.get_or_create(
+        user=request.user,
+        payment_intent_id=None
+    )
     order.items.add(item)
+    return redirect('item_detail', item_id=item_id)
+
+
+@csrf_exempt
+@login_required
+def checkout(request, order_id):
+    order = Order.objects.get(id=order_id)
+    item_names = [item.name for item in order.items.all()]
+    items_str = ', '.join(item_names)
+    unit_amount = int(order.calculate_total_price() * 100)
+    order.total_price = unit_amount
 
     session = stripe.checkout.Session.create(
         payment_method_types=['card'],
@@ -24,74 +54,46 @@ def buy_item(request, item_id):
             'price_data': {
                 'currency': 'usd',
                 'product_data': {
-                    'name': f'Order {order.id}',
+                    'name': f'Покупки: {items_str}',
                 },
-                'unit_amount': int(order.calculate_total_price() * 100),
+                'unit_amount': order.total_price,
             },
             'quantity': 1,
         }],
         mode='payment',
-        success_url=request.build_absolute_uri(reverse('success_page')),
-        cancel_url=request.build_absolute_uri(reverse('cancel_page')),
+        success_url=request.build_absolute_uri(reverse(
+            'success_page', kwargs={'order_id': order.id}
+        )),
+        cancel_url=request.build_absolute_uri(reverse(
+            'cancel_page', kwargs={'order_id': order.id}
+        )),
     )
-    order.payment_intent_id = session.payment_intent
+
+    order.payment_intent_id = session.id
     order.save()
 
     return JsonResponse({'session_id': session.id})
 
 
 @csrf_exempt
-def item_detail(request, item_id):
-    item = Item.objects.get(pk=item_id)
-    context = {'item': item}
-    template = 'payment/payment.html'
+def success_page(request, order_id):
+    order = Order.objects.get(id=order_id)
+    template = 'payment/success_page.html'
+    context = {
+        'total_amount': order.total_price,
+        'order_id': order.id
+    }
     return render(request, template, context)
 
 
-def success_page(request):
-    template = 'payment/success_page.html'
-    return render(request, template)
-
-
-def cancel_page(request):
+@csrf_exempt
+def cancel_page(request, order_id):
+    order = Order.objects.get(id=order_id)
+    order.payment_intent_id = None
+    order.save()
     template = 'payment/cancel_page.html'
-    return render(request, template)
-
-
-# @csrf_exempt
-# def buy_items(request):
-#     item_ids = request.GET.getlist('item_id')
-
-#     if not item_ids:
-#         return JsonResponse({'error': 'No item IDs provided'})
-
-#     items = Item.objects.filter(pk__in=item_ids)
-
-#     if not items:
-#         return JsonResponse({'error': 'Invalid item IDs'})
-
-#     order = Order.objects.create()
-
-#     for item in items:
-#         order.items.add(item)
-
-#     session = stripe.checkout.Session.create(
-#         payment_method_types=['card'],
-#         line_items=[{
-#             'price_data': {
-#                 'currency': 'usd',
-#                 'product_data': {
-#                     'name': f'Order {order.id}',
-#                 },
-#                 'unit_amount': int(order.calculate_total_price() * 100),
-#             },
-#             'quantity': 1,
-#         }],
-#         mode='payment',
-#         success_url=request.build_absolute_uri(reverse('success_page')),
-#         cancel_url=request.build_absolute_uri(reverse('cancel_page')),
-#     )
-#     order.payment_intent_id = session.payment_intent
-#     order.save()
-
-#     return JsonResponse({'session_id': session.id})
+    context = {
+        'total_amount': order.total_price,
+        'order_id': order.id
+    }
+    return render(request, template, context)

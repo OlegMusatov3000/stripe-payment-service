@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 from django_ckeditor_5.fields import CKEditor5Field
 
 
@@ -25,6 +26,13 @@ class Order(models.Model):
     payment_intent_id = models.CharField(
         'Идентификатор платежного интента в системе Stripe',
         max_length=255, blank=True, null=True
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE,
+        verbose_name='Пользователь, который совершает покупку'
+    )
+    total_price = models.IntegerField(
+        'Стоимость заказа', blank=True, null=True
     )
 
     def calculate_total_price(self):

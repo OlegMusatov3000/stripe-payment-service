@@ -222,3 +222,5 @@ CKEDITOR_5_CONFIGS = {
 }
 
 API_KEY = os.getenv('API_KEY')
+
+LOGIN_URL = '/admin/login/'

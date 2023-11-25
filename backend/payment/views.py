@@ -53,6 +53,7 @@ def checkout(request, order_id):
     unit_amount = int(order.calculate_total_price() * 100)
     discount = order.discount.amount
     tax = order.tax.rate
+    currency = order.items.first().currency
 
     coupon = stripe.Coupon.create(percent_off=discount, duration='once')
 
@@ -64,7 +65,7 @@ def checkout(request, order_id):
         payment_method_types=['card'],
         line_items=[{
             'price_data': {
-                'currency': 'usd',
+                'currency': currency.lower(),
                 'product_data': {
                     'name': f'Покупки: {items_str}',
                 },

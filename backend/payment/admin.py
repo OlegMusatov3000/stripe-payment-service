@@ -11,9 +11,8 @@ admin.site.register(Discount)
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
-    list_display = list_display_links = ('id', 'name', 'price')
-    list_display_links
-    list_filter = ('name',)
+    list_display = list_display_links = ('id', 'name', 'price', 'currency')
+    list_filter = ('name', 'currency')
     search_fields = ('description', 'price')
 
 

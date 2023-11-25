@@ -4,12 +4,20 @@ from django_ckeditor_5.fields import CKEditor5Field
 
 
 class Item(models.Model):
+    CURRENCY_CHOICES = [
+        ('USD', 'Доллары'),
+        ('RUB', 'Рубли'),
+    ]
+
     name = models.CharField('Имя', max_length=255)
     description = CKEditor5Field(
         verbose_name='Описание', max_length=600,
         config_name='extends', default='Описание'
     )
     price = models.DecimalField('Цена', max_digits=10, decimal_places=2)
+    currency = models.CharField(
+        'Валюта', max_length=3, choices=CURRENCY_CHOICES, default='RUB'
+    )
 
     def __str__(self):
         return self.name

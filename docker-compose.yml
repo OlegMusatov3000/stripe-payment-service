@@ -1,0 +1,29 @@
+version: '3'
+
+volumes:
+  backend_static:
+  pg_data_stripe_payment:
+
+services:
+  db:
+    image: postgres:13.10
+    env_file: .env
+    volumes:
+      - pg_data_stripe_payment:/var/lib/postgresql/data
+
+  backend:
+    image: olegmusatov/stripe_service_backend
+    env_file: .env
+    depends_on:
+      - db
+    volumes:
+      - backend_static:/app/static
+
+  gateway:
+    image: olegmusatov/stripe_service_gateway
+    depends_on:
+      - backend
+    ports:
+      - 8000:80 
+    volumes:
+      - backend_static:/backend_static
